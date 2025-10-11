@@ -156,6 +156,22 @@
 
             // 4. Set the repeating interval
             intervalId = setInterval(() => {
+                const elapsedMs = Date.now() - startTime;
+                
+                // Determine the next sound time based on full intervals passed since start.
+                // We use Math.round for slight timing drift correction.
+                const intervalsPassed = Math.round(elapsedMs / intervalMilliseconds);
+                const nextSoundTime = intervalsPassed * intervalMilliseconds;
+
+                // If the next sound time is within 500ms of the total duration, skip the sound.
+                // This prevents the sound from playing exactly when the timer is due to stop.
+                const timingToleranceMs = 500;
+                if (Math.abs(nextSoundTime - totalDurationMilliseconds) < timingToleranceMs) {
+                    console.log("Skipping final sound as it aligns with the total duration boundary.");
+                    // We let durationTimeoutId handle the official stop and cleanup.
+                    return;
+                }
+
                 playTone();
             }, intervalMilliseconds);
 
