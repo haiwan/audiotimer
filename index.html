@@ -6,26 +6,12 @@
     <title>Configurable Interval Timer</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Tone.js for audio generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <!-- Using native Web Audio API for tone generation -->
     <style>
         /* Custom styles for better aesthetics */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
-        }
-        /* Custom transition for advanced settings panel */
-        .advanced-panel {
-            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
-            overflow: hidden;
-            opacity: 1;
-        }
-        .advanced-panel.hidden {
-            max-height: 0;
-            opacity: 0;
-            margin-top: 0 !important;
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
         }
     </style>
 </head>
@@ -39,7 +25,7 @@
         <!-- Total Duration Input -->
         <div class="mb-6">
             <label for="durationMinutes" class="block text-sm font-medium text-gray-700 mb-1">Total Duration (Minutes, Min 1)</label>
-            <!-- Default value changed from 1 to 20 -->
+            <!-- Default value is 20 -->
             <input type="number" id="durationMinutes" value="20" min="1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 text-base">
         </div>
 
@@ -47,52 +33,19 @@
         <div class="flex space-x-4 mb-6">
             <div class="flex-1">
                 <label for="intervalMinutes" class="block text-sm font-medium text-gray-700 mb-1">Interval Minutes (0-59)</label>
-                <!-- Default value changed from 0 to 2 -->
+                <!-- Default value is 2 -->
                 <input type="number" id="intervalMinutes" value="2" min="0" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-base">
             </div>
             <div class="flex-1">
-                <!-- Label and min value updated to reflect 0 seconds is now allowed -->
                 <label for="intervalSeconds" class="block text-sm font-medium text-gray-700 mb-1">Interval Seconds (0-59)</label>
-                <!-- Default value changed from 5 to 0 -->
+                <!-- Default value is 0 -->
                 <input type="number" id="intervalSeconds" value="0" min="0" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-base">
             </div>
         </div>
 
-        <!-- Advanced Settings Toggle -->
-        <div class="mb-4 text-center">
-            <button onclick="toggleAdvancedSettings()" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center justify-center w-full focus:outline-none">
-                <span id="settingsToggleText">Show Advanced Audio Settings</span>
-                <svg id="settingsToggleIcon" class="w-4 h-4 ml-1 transform transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-            </button>
-        </div>
-        
-        <!-- Advanced Audio Settings Panel -->
-        <div id="advancedSettings" class="advanced-panel max-h-0 hidden p-4 bg-gray-50 rounded-lg mb-6 border border-gray-200">
-            <p class="text-sm font-semibold text-gray-700 mb-3">Tone Configuration</p>
-            
-            <div class="mb-3">
-                <label for="audioNote" class="block text-xs font-medium text-gray-600 mb-1">Note (e.g., C4, D5, G3):</label>
-                <input type="text" id="audioNote" class="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="D4">
-            </div>
-
-            <div class="mb-3">
-                <label for="audioDuration" class="block text-xs font-medium text-gray-600 mb-1">Duration (Seconds):</label>
-                <input type="number" id="audioDuration" step="0.1" min="0.1" class="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="0.5">
-            </div>
-
-            <div>
-                <label for="audioWaveform" class="block text-xs font-medium text-gray-600 mb-1">Waveform:</label>
-                <select id="audioWaveform" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="square">Square (Sharp Buzz)</option>
-                    <option value="sine">Sine (Soft Beep)</option>
-                    <option value="sawtooth">Sawtooth (Harsh)</option>
-                    <option value="triangle">Triangle (Muted)</option>
-                </select>
-            </div>
-        </div>
+        <!-- Advanced Settings Toggle and Panel removed -->
 
         <!-- Control Button -->
-        <!-- Adjusted from text-xl to text-lg -->
         <button id="toggleButton" onclick="toggleTimer()" class="w-full py-4 text-lg font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-lg transition duration-200 transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-sky-500 focus:ring-opacity-50">
             Start Timer
         </button>
@@ -101,7 +54,6 @@
         <div class="mt-8 p-4 bg-sky-50 rounded-lg border border-sky-200">
             <p id="statusMessage" class="text-center font-medium text-sky-800">Ready to start.</p>
             <!-- Displays time elapsed since start -->
-            <!-- Adjusted from text-base to text-sm -->
             <p id="elapsedTimeDisplay" class="text-center text-sm font-extrabold text-indigo-700 mt-3">Time Elapsed: --</p>
         </div>
 
@@ -115,13 +67,17 @@
         let startTime = null; // Tracks the time the timer started
         let elapsedTimeIntervalId = null; // ID for the elapsed time display update interval
 
-        // Global variables for audio configuration (Default hockey buzz settings)
-        let audioSettings = {
+        // Global variables for audio configuration (Fixed hockey buzz settings)
+        // Note: D4, Duration: 0.5s, Waveform: square are hardcoded defaults now.
+        const audioSettings = {
             note: "D4",
             duration: 0.5,
             waveform: "square"
         };
         
+        // Context for Web Audio API
+        let audioContext = null;
+
         // Element references
         const intervalMinutesInput = document.getElementById('intervalMinutes');
         const intervalSecondsInput = document.getElementById('intervalSeconds');
@@ -130,73 +86,81 @@
         const statusMessage = document.getElementById('statusMessage');
         const elapsedTimeDisplay = document.getElementById('elapsedTimeDisplay'); 
         
-        // Advanced Settings element references
-        const advancedSettingsDiv = document.getElementById('advancedSettings');
-        const audioNoteInput = document.getElementById('audioNote');
-        const audioDurationInput = document.getElementById('audioDuration');
-        const audioWaveformInput = document.getElementById('audioWaveform');
-        const settingsToggleText = document.getElementById('settingsToggleText');
-        const settingsToggleIcon = document.getElementById('settingsToggleIcon');
-
+        // Removed references to Advanced Settings elements
 
         /**
-         * Updates the global audioSettings object based on input field values.
+         * Helper function to convert MIDI note strings (like D4) to frequencies (Hz).
          */
-        function handleSettingChange() {
-            // Read values and update state
-            audioSettings.note = audioNoteInput.value.trim() || "D4";
-            audioSettings.duration = parseFloat(audioDurationInput.value) || 0.5;
-            audioSettings.waveform = audioWaveformInput.value;
+        function noteToFreq(note) {
+            const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            // Extract octave and note name
+            const match = note.match(/([A-G]#?)([0-9])/i);
+            if (!match) return 440; // Default to A4 if format is invalid
             
-            // Provide feedback if timer is not running
-            if (!isRunning) {
-                statusMessage.textContent = `Ready. Tone: ${audioSettings.note} (${audioSettings.waveform}) for ${audioSettings.duration}s.`;
-                statusMessage.classList.remove('text-red-600', 'text-green-700', 'text-indigo-700');
-                statusMessage.classList.add('text-sky-800');
-            }
-        }
-        
-        /**
-         * Toggles the visibility of the advanced audio settings panel.
-         */
-        function toggleAdvancedSettings() {
-            const isHidden = advancedSettingsDiv.classList.toggle('hidden');
-            if (isHidden) {
-                settingsToggleText.textContent = "Show Advanced Audio Settings";
-                settingsToggleIcon.classList.remove('rotate-180');
-                advancedSettingsDiv.style.maxHeight = 0;
-            } else {
-                settingsToggleText.textContent = "Hide Advanced Audio Settings";
-                settingsToggleIcon.classList.add('rotate-180');
-                // Set max-height for smooth transition (approximate size)
-                advancedSettingsDiv.style.maxHeight = '300px'; 
-            }
+            const noteName = match[1].toUpperCase();
+            const octave = parseInt(match[2]);
+
+            let noteIndex = notes.indexOf(noteName);
+            if (noteIndex === -1) return 440; 
+
+            // Calculate MIDI note number (69 is A4)
+            let midi = (octave + 1) * 12 + noteIndex;
+            
+            // Calculate frequency from MIDI note number
+            return 440 * Math.pow(2, (midi - 69) / 12);
         }
 
+        // Removed handleSettingChange and toggleAdvancedSettings functions
+
         /**
-         * Generates and plays a tone using the current audioSettings via Tone.js.
+         * Generates and plays a tone using the current audioSettings via Web Audio API.
          */
         async function playTone() {
             try {
-                // Ensure Tone.js is running (required for modern browsers)
-                if (Tone.context.state !== 'running') {
-                    await Tone.start();
+                // 1. Initialize AudioContext on first play (requires user gesture)
+                if (audioContext === null) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                // 2. Resume context if suspended (common on mobile)
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
                 }
 
-                // Use configurable waveform
-                const synth = new Tone.Synth({
-                    oscillator: { type: audioSettings.waveform }, 
-                    envelope: {
-                        attack: 0.001, 
-                        decay: 0.05, 
-                        sustain: 0.05, 
-                        release: 0.15 
-                    }
-                }).toDestination();
+                const now = audioContext.currentTime;
+                const frequency = noteToFreq(audioSettings.note);
+                const duration = audioSettings.duration;
+                const waveform = audioSettings.waveform;
 
-                // Use configurable note and duration
-                synth.triggerAttackRelease(audioSettings.note, audioSettings.duration); 
-                console.log(`Audio played: ${audioSettings.waveform} ${audioSettings.note} for ${audioSettings.duration}s.`);
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                // 3. Connect nodes: Oscillator -> Gain -> Destination
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // 4. Configure oscillator
+                oscillator.type = waveform;
+                oscillator.frequency.setValueAtTime(frequency, now);
+
+                // 5. Configure Envelope (Volume Control for the sharp buzz effect)
+                gainNode.gain.setValueAtTime(0, now); // Start silently
+                
+                // Attack (Quick ramp up for sharp buzz)
+                gainNode.gain.linearRampToValueAtTime(0.6, now + 0.005); 
+                
+                // Hold (Maintain volume for most of the configured duration)
+                gainNode.gain.linearRampToValueAtTime(0.6, now + duration - 0.05); // Hold until near the end
+                
+                // Release (Quick fade out)
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration); 
+
+                // 6. Start and Stop Oscillator
+                oscillator.start(now);
+                // Set the stop time to match the configured duration
+                oscillator.stop(now + duration); 
+
+                console.log(`Audio played: ${waveform} ${audioSettings.note} for ${duration}s.`);
 
             } catch (error) {
                 console.error('Error playing audio:', error);
@@ -277,9 +241,7 @@
             intervalMinutesInput.disabled = true;
             intervalSecondsInput.disabled = true;
             durationMinutesInput.disabled = true;
-            audioNoteInput.disabled = true;
-            audioDurationInput.disabled = true;
-            audioWaveformInput.disabled = true;
+            // Removed audio input disabling
         }
 
         /**
@@ -326,9 +288,7 @@
             intervalMinutesInput.disabled = false;
             intervalSecondsInput.disabled = false;
             durationMinutesInput.disabled = false;
-            audioNoteInput.disabled = false;
-            audioDurationInput.disabled = false;
-            audioWaveformInput.disabled = false;
+            // Removed audio input enabling
         }
 
         /**
@@ -344,18 +304,12 @@
         
         // --- Initialization ---
         
-        // Set initial values in the advanced input fields
-        audioNoteInput.value = audioSettings.note;
-        audioDurationInput.value = audioSettings.duration;
-        audioWaveformInput.value = audioSettings.waveform;
+        // Removed initial value setting and listeners for audio inputs
 
-        // Add listeners to update audioSettings when inputs change
-        audioNoteInput.addEventListener('change', handleSettingChange);
-        audioDurationInput.addEventListener('change', handleSettingChange);
-        audioWaveformInput.addEventListener('change', handleSettingChange);
+        // Set initial status message based on hardcoded defaults
+        statusMessage.textContent = `Ready. Tone: ${audioSettings.note} (${audioSettings.waveform}) for ${audioSettings.duration}s.`;
+        statusMessage.classList.add('text-sky-800');
 
-        // Run initial update to set status message
-        handleSettingChange();
 
         // Clean up when the user navigates away 
         window.addEventListener('beforeunload', stopTimer);
