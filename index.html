@@ -39,21 +39,22 @@
         <!-- Total Duration Input -->
         <div class="mb-6">
             <label for="durationMinutes" class="block text-sm font-medium text-gray-700 mb-1">Total Duration (Minutes, Min 1)</label>
-            <!-- Adjusted from text-lg to text-base -->
-            <input type="number" id="durationMinutes" value="1" min="1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 text-base">
+            <!-- Default value changed from 1 to 20 -->
+            <input type="number" id="durationMinutes" value="20" min="1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 text-base">
         </div>
 
         <!-- Interval Inputs -->
         <div class="flex space-x-4 mb-6">
             <div class="flex-1">
                 <label for="intervalMinutes" class="block text-sm font-medium text-gray-700 mb-1">Interval Minutes (0-59)</label>
-                <!-- Adjusted from text-lg to text-base -->
-                <input type="number" id="intervalMinutes" value="0" min="0" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-base">
+                <!-- Default value changed from 0 to 2 -->
+                <input type="number" id="intervalMinutes" value="2" min="0" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-base">
             </div>
             <div class="flex-1">
-                <label for="intervalSeconds" class="block text-sm font-medium text-gray-700 mb-1">Interval Seconds (1-59)</label>
-                <!-- Adjusted from text-lg to text-base -->
-                <input type="number" id="intervalSeconds" value="5" min="1" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-base">
+                <!-- Label and min value updated to reflect 0 seconds is now allowed -->
+                <label for="intervalSeconds" class="block text-sm font-medium text-gray-700 mb-1">Interval Seconds (0-59)</label>
+                <!-- Default value changed from 5 to 0 -->
+                <input type="number" id="intervalSeconds" value="0" min="0" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-base">
             </div>
         </div>
 
