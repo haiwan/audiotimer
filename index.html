@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurable Interval Timer</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Tone.js for audio generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Custom transition for advanced settings panel */
+        .advanced-panel {
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            overflow: hidden;
+            opacity: 1;
+        }
+        .advanced-panel.hidden {
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="app-card" class="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl border border-gray-100">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">Audio Interval Timer</h1>
+        <p class="text-gray-500 mb-8 text-center">Set the interval and the total duration for the timer.</p>
+
+        <!-- Total Duration Input -->
+        <div class="mb-6">
+            <label for="durationMinutes" class="block text-sm font-medium text-gray-700 mb-1">Total Duration (Minutes, Min 1)</label>
+            <input type="number" id="durationMinutes" value="1" min="1" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 text-lg">
+        </div>
+
+        <!-- Interval Inputs -->
+        <div class="flex space-x-4 mb-6">
+            <div class="flex-1">
+                <label for="intervalMinutes" class="block text-sm font-medium text-gray-700 mb-1">Interval Minutes (0-59)</label>
+                <input type="number" id="intervalMinutes" value="0" min="0" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-lg">
+            </div>
+            <div class="flex-1">
+                <label for="intervalSeconds" class="block text-sm font-medium text-gray-700 mb-1">Interval Seconds (1-59)</label>
+                <input type="number" id="intervalSeconds" value="5" min="1" max="59" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 transition duration-150 text-lg">
+            </div>
+        </div>
+
+        <!-- Advanced Settings Toggle -->
+        <div class="mb-4 text-center">
+            <button onclick="toggleAdvancedSettings()" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center justify-center w-full focus:outline-none">
+                <span id="settingsToggleText">Show Advanced Audio Settings</span>
+                <svg id="settingsToggleIcon" class="w-4 h-4 ml-1 transform transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </div>
+        
+        <!-- Advanced Audio Settings Panel -->
+        <div id="advancedSettings" class="advanced-panel max-h-0 hidden p-4 bg-gray-50 rounded-lg mb-6 border border-gray-200">
+            <p class="text-sm font-semibold text-gray-700 mb-3">Tone Configuration</p>
+            
+            <div class="mb-3">
+                <label for="audioNote" class="block text-xs font-medium text-gray-600 mb-1">Note (e.g., C4, D5, G3):</label>
+                <input type="text" id="audioNote" class="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="D4">
+            </div>
+
+            <div class="mb-3">
+                <label for="audioDuration" class="block text-xs font-medium text-gray-600 mb-1">Duration (Seconds):</label>
+                <input type="number" id="audioDuration" step="0.1" min="0.1" class="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="0.5">
+            </div>
+
+            <div>
+                <label for="audioWaveform" class="block text-xs font-medium text-gray-600 mb-1">Waveform:</label>
+                <select id="audioWaveform" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="square">Square (Sharp Buzz)</option>
+                    <option value="sine">Sine (Soft Beep)</option>
+                    <option value="sawtooth">Sawtooth (Harsh)</option>
+                    <option value="triangle">Triangle (Muted)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Control Button -->
+        <button id="toggleButton" onclick="toggleTimer()" class="w-full py-4 text-xl font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-lg transition duration-200 transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-sky-500 focus:ring-opacity-50">
+            Start Timer
+        </button>
+
+        <!-- Status and Feedback -->
+        <div class="mt-8 p-4 bg-sky-50 rounded-lg border border-sky-200">
+            <p id="statusMessage" class="text-center font-medium text-sky-800">Ready to start.</p>
+            <!-- Displays time elapsed since start -->
+            <p id="elapsedTimeDisplay" class="text-center text-base font-extrabold text-indigo-700 mt-3">Time Elapsed: --</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Global variables for timer state and IDs
+        let intervalId = null;
+        let durationTimeoutId = null; 
+        let isRunning = false;
+        let startTime = null; // Tracks the time the timer started
+        let elapsedTimeIntervalId = null; // ID for the elapsed time display update interval
+
+        // Global variables for audio configuration (Default hockey buzz settings)
+        let audioSettings = {
+            note: "D4",
+            duration: 0.5,
+            waveform: "square"
+        };
+        
+        // Element references
+        const intervalMinutesInput = document.getElementById('intervalMinutes');
+        const intervalSecondsInput = document.getElementById('intervalSeconds');
+        const durationMinutesInput = document.getElementById('durationMinutes');
+        const toggleButton = document.getElementById('toggleButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const elapsedTimeDisplay = document.getElementById('elapsedTimeDisplay'); 
+        
+        // Advanced Settings element references
+        const advancedSettingsDiv = document.getElementById('advancedSettings');
+        const audioNoteInput = document.getElementById('audioNote');
+        const audioDurationInput = document.getElementById('audioDuration');
+        const audioWaveformInput = document.getElementById('audioWaveform');
+        const settingsToggleText = document.getElementById('settingsToggleText');
+        const settingsToggleIcon = document.getElementById('settingsToggleIcon');
+
+
+        /**
+         * Updates the global audioSettings object based on input field values.
+         */
+        function handleSettingChange() {
+            // Read values and update state
+            audioSettings.note = audioNoteInput.value.trim() || "D4";
+            audioSettings.duration = parseFloat(audioDurationInput.value) || 0.5;
+            audioSettings.waveform = audioWaveformInput.value;
+            
+            // Provide feedback if timer is not running
+            if (!isRunning) {
+                statusMessage.textContent = `Ready. Tone: ${audioSettings.note} (${audioSettings.waveform}) for ${audioSettings.duration}s.`;
+                statusMessage.classList.remove('text-red-600', 'text-green-700', 'text-indigo-700');
+                statusMessage.classList.add('text-sky-800');
+            }
+        }
+        
+        /**
+         * Toggles the visibility of the advanced audio settings panel.
+         */
+        function toggleAdvancedSettings() {
+            const isHidden = advancedSettingsDiv.classList.toggle('hidden');
+            if (isHidden) {
+                settingsToggleText.textContent = "Show Advanced Audio Settings";
+                settingsToggleIcon.classList.remove('rotate-180');
+                advancedSettingsDiv.style.maxHeight = 0;
+            } else {
+                settingsToggleText.textContent = "Hide Advanced Audio Settings";
+                settingsToggleIcon.classList.add('rotate-180');
+                // Set max-height for smooth transition (approximate size)
+                advancedSettingsDiv.style.maxHeight = '300px'; 
+            }
+        }
+
+        /**
+         * Generates and plays a tone using the current audioSettings via Tone.js.
+         */
+        async function playTone() {
+            try {
+                // Ensure Tone.js is running (required for modern browsers)
+                if (Tone.context.state !== 'running') {
+                    await Tone.start();
+                }
+
+                // Use configurable waveform
+                const synth = new Tone.Synth({
+                    oscillator: { type: audioSettings.waveform }, 
+                    envelope: {
+                        attack: 0.001, 
+                        decay: 0.05, 
+                        sustain: 0.05, 
+                        release: 0.15 
+                    }
+                }).toDestination();
+
+                // Use configurable note and duration
+                synth.triggerAttackRelease(audioSettings.note, audioSettings.duration); 
+                console.log(`Audio played: ${audioSettings.waveform} ${audioSettings.note} for ${audioSettings.duration}s.`);
+
+            } catch (error) {
+                console.error('Error playing audio:', error);
+                statusMessage.textContent = 'Error: Could not play audio. Check console.';
+            }
+        }
+
+        /**
+         * Updates the display to show the total time elapsed since the timer started.
+         */
+        function updateElapsedTime() {
+            if (startTime === null) return;
+
+            const elapsedMs = Date.now() - startTime;
+            const totalSeconds = Math.round(elapsedMs / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            const minutesStr = minutes.toString().padStart(2, '0');
+            const secondsStr = seconds.toString().padStart(2, '0');
+
+            elapsedTimeDisplay.textContent = `Time Elapsed: ${minutesStr}:${secondsStr}`;
+        }
+
+        /**
+         * Validates the inputs and starts the interval timer.
+         */
+        function startTimer() {
+            // 1. Get and validate time inputs
+            const intervalMinutes = parseInt(intervalMinutesInput.value) || 0;
+            const intervalSeconds = parseInt(intervalSecondsInput.value) || 0;
+            const totalIntervalSeconds = (intervalMinutes * 60) + intervalSeconds;
+            const intervalMilliseconds = totalIntervalSeconds * 1000;
+
+            const durationMinutes = parseInt(durationMinutesInput.value) || 0;
+            const totalDurationMilliseconds = durationMinutes * 60 * 1000;
+
+            if (totalIntervalSeconds <= 0) {
+                statusMessage.textContent = 'Please enter a total interval time greater than 0 seconds.';
+                statusMessage.classList.remove('text-sky-800', 'text-green-700');
+                statusMessage.classList.add('text-red-600');
+                return;
+            }
+
+            if (durationMinutes <= 0) {
+                statusMessage.textContent = 'Please set a total duration greater than 0 minutes.';
+                statusMessage.classList.remove('text-sky-800', 'text-green-700');
+                statusMessage.classList.add('text-red-600');
+                return;
+            }
+
+            // 2. Set up interval state and UI
+            isRunning = true;
+            toggleButton.textContent = 'Stop Timer';
+            toggleButton.classList.remove('bg-sky-600', 'hover:bg-sky-700', 'focus:ring-sky-500');
+            toggleButton.classList.add('bg-red-500', 'hover:bg-red-600', 'focus:ring-red-400');
+            
+            statusMessage.textContent = `Timer started. Interval: ${totalIntervalSeconds}s. Duration: ${durationMinutes}m.`;
+            statusMessage.classList.remove('text-red-600', 'text-sky-800', 'text-indigo-700');
+            statusMessage.classList.add('text-green-700');
+
+            // 3. Start elapsed time tracking
+            startTime = Date.now();
+            updateElapsedTime(); // Update immediately
+            elapsedTimeIntervalId = setInterval(updateElapsedTime, 1000); // Update every second
+
+            // 4. Set the repeating interval
+            intervalId = setInterval(() => {
+                playTone();
+            }, intervalMilliseconds);
+
+            // 5. Set the duration timeout to stop the timer automatically
+            durationTimeoutId = setTimeout(() => {
+                stopTimer(true); 
+            }, totalDurationMilliseconds);
+
+            // Disable inputs while running
+            intervalMinutesInput.disabled = true;
+            intervalSecondsInput.disabled = true;
+            durationMinutesInput.disabled = true;
+            audioNoteInput.disabled = true;
+            audioDurationInput.disabled = true;
+            audioWaveformInput.disabled = true;
+        }
+
+        /**
+         * Clears the interval timer and duration timeout.
+         * @param {boolean} isAutoStop - True if the timer was stopped automatically by the duration.
+         */
+        function stopTimer(isAutoStop = false) {
+            // Clear all intervals and timeouts
+            if (intervalId !== null) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+            if (durationTimeoutId !== null) {
+                clearTimeout(durationTimeoutId);
+                durationTimeoutId = null;
+            }
+            if (elapsedTimeIntervalId !== null) {
+                clearInterval(elapsedTimeIntervalId);
+                elapsedTimeIntervalId = null;
+            }
+
+            // Reset state
+            isRunning = false;
+            startTime = null; // Reset start time
+
+            // Update button
+            toggleButton.textContent = 'Start Timer';
+            toggleButton.classList.remove('bg-red-500', 'hover:bg-red-600', 'focus:ring-red-400');
+            toggleButton.classList.add('bg-sky-600', 'hover:bg-sky-700', 'focus:ring-sky-500');
+
+            // Update status message based on stop reason
+            if (isAutoStop) {
+                statusMessage.textContent = 'Timer finished. The set duration has elapsed.';
+                statusMessage.classList.remove('text-red-600', 'text-green-700', 'text-sky-800');
+                statusMessage.classList.add('text-indigo-700'); // Use indigo for completion
+            } else {
+                statusMessage.textContent = 'Timer stopped manually.';
+                statusMessage.classList.remove('text-red-600', 'text-green-700', 'text-indigo-700');
+                statusMessage.classList.add('text-sky-800'); // Use sky blue for manual stop
+            }
+            
+            // Reset displays and enable inputs
+            elapsedTimeDisplay.textContent = 'Time Elapsed: --';
+            intervalMinutesInput.disabled = false;
+            intervalSecondsInput.disabled = false;
+            durationMinutesInput.disabled = false;
+            audioNoteInput.disabled = false;
+            audioDurationInput.disabled = false;
+            audioWaveformInput.disabled = false;
+        }
+
+        /**
+         * Toggles between starting and stopping the timer.
+         */
+        function toggleTimer() {
+            if (isRunning) {
+                stopTimer();
+            } else {
+                startTimer();
+            }
+        }
+        
+        // --- Initialization ---
+        
+        // Set initial values in the advanced input fields
+        audioNoteInput.value = audioSettings.note;
+        audioDurationInput.value = audioSettings.duration;
+        audioWaveformInput.value = audioSettings.waveform;
+
+        // Add listeners to update audioSettings when inputs change
+        audioNoteInput.addEventListener('change', handleSettingChange);
+        audioDurationInput.addEventListener('change', handleSettingChange);
+        audioWaveformInput.addEventListener('change', handleSettingChange);
+
+        // Run initial update to set status message
+        handleSettingChange();
+
+        // Clean up when the user navigates away 
+        window.addEventListener('beforeunload', stopTimer);
+    </script>
+</body>
+</html>
