@@ -6,7 +6,7 @@
     <title>Configurable Interval Timer</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Using native Web Audio API for tone generation -->
+    <!-- Using native Web Audio API for MP3 playback -->
     <style>
         /* Custom styles for better aesthetics */
         body {
@@ -43,8 +43,6 @@
             </div>
         </div>
 
-        <!-- Advanced Settings Toggle and Panel removed -->
-
         <!-- Control Button -->
         <button id="toggleButton" onclick="toggleTimer()" class="w-full py-4 text-lg font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-lg transition duration-200 transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-sky-500 focus:ring-opacity-50">
             Start Timer
@@ -67,16 +65,12 @@
         let startTime = null; // Tracks the time the timer started
         let elapsedTimeIntervalId = null; // ID for the elapsed time display update interval
 
-        // Global variables for audio configuration (Fixed hockey buzz settings)
-        // Note: D4, Duration: 0.5s, Waveform: square are hardcoded defaults now.
-        const audioSettings = {
-            note: "D4",
-            duration: 0.5,
-            waveform: "square"
-        };
-        
         // Context for Web Audio API
         let audioContext = null;
+        // Audio buffer to store decoded MP3 data
+        let audioBuffer = null;
+        // URL for the uploaded MP3 file
+        const AUDIO_URL = './buzzer.mp3'; 
 
         // Element references
         const intervalMinutesInput = document.getElementById('intervalMinutes');
@@ -86,87 +80,71 @@
         const statusMessage = document.getElementById('statusMessage');
         const elapsedTimeDisplay = document.getElementById('elapsedTimeDisplay'); 
         
-        // Removed references to Advanced Settings elements
+        // Removed audio settings and helper functions for synthetic tone generation.
 
         /**
-         * Helper function to convert MIDI note strings (like D4) to frequencies (Hz).
+         * Loads the MP3 file asynchronously and decodes it into an AudioBuffer.
          */
-        function noteToFreq(note) {
-            const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-            // Extract octave and note name
-            const match = note.match(/([A-G]#?)([0-9])/i);
-            if (!match) return 440; // Default to A4 if format is invalid
-            
-            const noteName = match[1].toUpperCase();
-            const octave = parseInt(match[2]);
+        async function loadAudio() {
+            statusMessage.textContent = 'Loading buzzer audio...';
+            statusMessage.classList.remove('text-sky-800');
+            statusMessage.classList.add('text-indigo-700');
 
-            let noteIndex = notes.indexOf(noteName);
-            if (noteIndex === -1) return 440; 
-
-            // Calculate MIDI note number (69 is A4)
-            let midi = (octave + 1) * 12 + noteIndex;
-            
-            // Calculate frequency from MIDI note number
-            return 440 * Math.pow(2, (midi - 69) / 12);
+            try {
+                // 1. Initialize AudioContext
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // 2. Fetch the MP3 file
+                const response = await fetch(AUDIO_URL);
+                const arrayBuffer = await response.arrayBuffer();
+                
+                // 3. Decode the audio data once
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                statusMessage.textContent = 'Buzzer audio loaded. Ready to start.';
+                statusMessage.classList.remove('text-indigo-700');
+                statusMessage.classList.add('text-sky-800');
+                
+            } catch (error) {
+                console.error('Error loading or decoding audio:', error);
+                statusMessage.textContent = 'Error loading buzzer audio. Check console.';
+                statusMessage.classList.remove('text-sky-800', 'text-indigo-700');
+                statusMessage.classList.add('text-red-600');
+                // Disable the button if audio failed to load
+                toggleButton.disabled = true;
+            }
         }
 
-        // Removed handleSettingChange and toggleAdvancedSettings functions
-
         /**
-         * Generates and plays a tone using the current audioSettings via Web Audio API.
+         * Plays the loaded MP3 file.
          */
         async function playTone() {
             try {
-                // 1. Initialize AudioContext on first play (requires user gesture)
-                if (audioContext === null) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (!audioBuffer) {
+                    console.warn('Audio buffer not loaded yet or failed to load.');
+                    return;
                 }
                 
-                // 2. Resume context if suspended (common on mobile)
+                // Resume context if suspended (common on mobile)
                 if (audioContext.state === 'suspended') {
                     await audioContext.resume();
                 }
 
-                const now = audioContext.currentTime;
-                const frequency = noteToFreq(audioSettings.note);
-                const duration = audioSettings.duration;
-                const waveform = audioSettings.waveform;
-
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-
-                // 3. Connect nodes: Oscillator -> Gain -> Destination
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-
-                // 4. Configure oscillator
-                oscillator.type = waveform;
-                oscillator.frequency.setValueAtTime(frequency, now);
-
-                // 5. Configure Envelope (Volume Control for the sharp buzz effect)
-                gainNode.gain.setValueAtTime(0, now); // Start silently
+                // Create a buffer source node to play the sound
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
                 
-                // Attack (Quick ramp up for sharp buzz)
-                gainNode.gain.linearRampToValueAtTime(0.6, now + 0.005); 
-                
-                // Hold (Maintain volume for most of the configured duration)
-                gainNode.gain.linearRampToValueAtTime(0.6, now + duration - 0.05); // Hold until near the end
-                
-                // Release (Quick fade out)
-                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration); 
+                // Play the sound immediately from the start (offset 0)
+                source.start(0);
 
-                // 6. Start and Stop Oscillator
-                oscillator.start(now);
-                // Set the stop time to match the configured duration
-                oscillator.stop(now + duration); 
-
-                console.log(`Audio played: ${waveform} ${audioSettings.note} for ${duration}s.`);
+                console.log(`Buzzer MP3 played.`);
 
             } catch (error) {
                 console.error('Error playing audio:', error);
-                statusMessage.textContent = 'Error: Could not play audio. Check console.';
             }
         }
+
 
         /**
          * Updates the display to show the total time elapsed since the timer started.
@@ -189,6 +167,12 @@
          * Validates the inputs and starts the interval timer.
          */
         function startTimer() {
+            if (!audioBuffer) {
+                statusMessage.textContent = 'Buzzer audio is still loading or failed to load.';
+                statusMessage.classList.add('text-red-600');
+                return;
+            }
+
             // 1. Get and validate time inputs
             const intervalMinutes = parseInt(intervalMinutesInput.value) || 0;
             const intervalSeconds = parseInt(intervalSecondsInput.value) || 0;
@@ -241,7 +225,6 @@
             intervalMinutesInput.disabled = true;
             intervalSecondsInput.disabled = true;
             durationMinutesInput.disabled = true;
-            // Removed audio input disabling
         }
 
         /**
@@ -288,7 +271,6 @@
             intervalMinutesInput.disabled = false;
             intervalSecondsInput.disabled = false;
             durationMinutesInput.disabled = false;
-            // Removed audio input enabling
         }
 
         /**
@@ -304,11 +286,13 @@
         
         // --- Initialization ---
         
-        // Removed initial value setting and listeners for audio inputs
-
-        // Set initial status message based on hardcoded defaults
-        statusMessage.textContent = `Ready. Tone: ${audioSettings.note} (${audioSettings.waveform}) for ${audioSettings.duration}s.`;
-        statusMessage.classList.add('text-sky-800');
+        // Load the audio file asynchronously
+        loadAudio();
+        
+        // Initial status message (will be overwritten by loadAudio)
+        statusMessage.textContent = 'Loading buzzer audio...';
+        statusMessage.classList.remove('text-sky-800');
+        statusMessage.classList.add('text-indigo-700');
 
 
         // Clean up when the user navigates away 
