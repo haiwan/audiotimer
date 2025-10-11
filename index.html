@@ -6,7 +6,7 @@
     <title>Configurable Interval Timer</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Using native Web Audio API for MP3 playback -->
+    <!-- Using HTML Audio Tag for MP3 playback -->
     <style>
         /* Custom styles for better aesthetics */
         body {
@@ -56,6 +56,10 @@
         </div>
 
     </div>
+    
+    <!-- Hidden Audio Element for MP3 Playback -->
+    <!-- The src attribute points to the uploaded buzzer.mp3 file URL -->
+    <audio id="buzzerAudio" src="./buzzer.mp3" preload="auto"></audio>
 
     <script>
         // Global variables for timer state and IDs
@@ -65,13 +69,6 @@
         let startTime = null; // Tracks the time the timer started
         let elapsedTimeIntervalId = null; // ID for the elapsed time display update interval
 
-        // Context for Web Audio API
-        let audioContext = null;
-        // Audio buffer to store decoded MP3 data
-        let audioBuffer = null;
-        // URL for the uploaded MP3 file
-        const AUDIO_URL = './buzzer.mp3'; 
-
         // Element references
         const intervalMinutesInput = document.getElementById('intervalMinutes');
         const intervalSecondsInput = document.getElementById('intervalSeconds');
@@ -79,67 +76,18 @@
         const toggleButton = document.getElementById('toggleButton');
         const statusMessage = document.getElementById('statusMessage');
         const elapsedTimeDisplay = document.getElementById('elapsedTimeDisplay'); 
+        const buzzerAudio = document.getElementById('buzzerAudio'); // Reference to the new audio element
+
         
-        // Removed audio settings and helper functions for synthetic tone generation.
-
         /**
-         * Loads the MP3 file asynchronously and decodes it into an AudioBuffer.
+         * Plays the loaded MP3 file using the HTML Audio Element.
          */
-        async function loadAudio() {
-            statusMessage.textContent = 'Loading buzzer audio...';
-            statusMessage.classList.remove('text-sky-800');
-            statusMessage.classList.add('text-indigo-700');
-
+        function playTone() {
             try {
-                // 1. Initialize AudioContext
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
-                // 2. Fetch the MP3 file
-                const response = await fetch(AUDIO_URL);
-                const arrayBuffer = await response.arrayBuffer();
-                
-                // 3. Decode the audio data once
-                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                
-                statusMessage.textContent = 'Buzzer audio loaded. Ready to start.';
-                statusMessage.classList.remove('text-indigo-700');
-                statusMessage.classList.add('text-sky-800');
-                
-            } catch (error) {
-                console.error('Error loading or decoding audio:', error);
-                statusMessage.textContent = 'Error loading buzzer audio. Check console.';
-                statusMessage.classList.remove('text-sky-800', 'text-indigo-700');
-                statusMessage.classList.add('text-red-600');
-                // Disable the button if audio failed to load
-                toggleButton.disabled = true;
-            }
-        }
-
-        /**
-         * Plays the loaded MP3 file.
-         */
-        async function playTone() {
-            try {
-                if (!audioBuffer) {
-                    console.warn('Audio buffer not loaded yet or failed to load.');
-                    return;
-                }
-                
-                // Resume context if suspended (common on mobile)
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
-
-                // Create a buffer source node to play the sound
-                const source = audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
-                
-                // Play the sound immediately from the start (offset 0)
-                source.start(0);
-
-                console.log(`Buzzer MP3 played.`);
-
+                // Rewind the audio to the beginning for instant playback
+                buzzerAudio.currentTime = 0;
+                buzzerAudio.play();
+                console.log(`Buzzer MP3 played via HTML Audio.`);
             } catch (error) {
                 console.error('Error playing audio:', error);
             }
@@ -167,11 +115,7 @@
          * Validates the inputs and starts the interval timer.
          */
         function startTimer() {
-            if (!audioBuffer) {
-                statusMessage.textContent = 'Buzzer audio is still loading or failed to load.';
-                statusMessage.classList.add('text-red-600');
-                return;
-            }
+            // No need to check for audioBuffer as the HTML audio tag handles loading.
 
             // 1. Get and validate time inputs
             const intervalMinutes = parseInt(intervalMinutesInput.value) || 0;
@@ -286,14 +230,7 @@
         
         // --- Initialization ---
         
-        // Load the audio file asynchronously
-        loadAudio();
-        
-        // Initial status message (will be overwritten by loadAudio)
-        statusMessage.textContent = 'Loading buzzer audio...';
-        statusMessage.classList.remove('text-sky-800');
-        statusMessage.classList.add('text-indigo-700');
-
+        // No explicit audio loading necessary since the HTML audio tag handles it.
 
         // Clean up when the user navigates away 
         window.addEventListener('beforeunload', stopTimer);
