@@ -7,7 +7,7 @@ const urlsToCache = [
     'index.html',
     'buzzer.mp3',
     // External libraries that must be available offline
-    'https://cdn.tailwindcss.com'
+    'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4'
 ];
 
 // 1. Install Event: Caches all necessary assets
