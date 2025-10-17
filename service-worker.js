@@ -5,9 +5,9 @@ const CACHE_NAME = 'audio-timer-cache-v1';
 const urlsToCache = [
     './', // Caches index.html (or the root page)
     'index.html',
+    'buzzer.mp3',
     // External libraries that must be available offline
-    'https://cdn.tailwindcss.com',
-    'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js'
+    'https://cdn.tailwindcss.com'
 ];
 
 // 1. Install Event: Caches all necessary assets
